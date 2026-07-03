@@ -1,0 +1,44 @@
+/* IANNA CRM — assets/css/01-base.css
+   Tokens de diseño (variables CSS) y pantalla de login.
+   Fase 1: reglas movidas intactas (mismo orden de cascada). */
+
+/* ── TOKENS ── */
+:root{
+  --navy:#1E3D0F;--navy-2:#2D5A1B;--navy-3:#3d7a24;
+  --gold:#C9963C;--gold-l:#d4a84b;--gold-p:#fdf8ec;
+  --w:#fff;--s:#f7f8fb;--s2:#eef0f6;
+  --bd:#e2e5ee;--bd2:#cdd1de;
+  --t1:#0d1f3c;--t2:#4a5568;--t3:#8896a7;
+  --green:#10b981;--red:#ef4444;--amber:#f59e0b;--blue:#3b82f6;
+  --sb:242px;--tb:60px;--r:10px;--rl:14px;
+  --sh1:0 1px 4px rgba(13,31,60,.07);
+  --sh2:0 4px 20px rgba(13,31,60,.11);
+  --sh3:0 12px 40px rgba(13,31,60,.16);
+  --tr:all .17s ease;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--s);color:var(--t1);min-height:100vh;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+input,select,textarea,button{font-family:inherit;font-size:14px}
+button{cursor:pointer;border:none;background:none}
+ul{list-style:none}
+a{text-decoration:none;color:inherit}
+
+/* ── LOGIN ── */
+#login-screen{position:fixed;inset:0;z-index:1000;background:var(--navy);display:flex;align-items:center;justify-content:center}
+.lw{width:100%;max-width:420px;padding:20px}
+.l-logo{text-align:center;margin-bottom:28px}
+.l-logo .ln{font-family:'DM Serif Display',serif;font-size:30px;color:#fff}
+.l-logo .ls{font-size:10px;color:var(--gold);letter-spacing:3px;text-transform:uppercase;margin-top:4px}
+.l-logo .ld{font-size:12px;color:rgba(255,255,255,.35);margin-top:6px}
+.l-card{background:var(--w);border-radius:var(--rl);padding:36px 40px;box-shadow:var(--sh3)}
+.l-err{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;font-size:13px;color:#dc2626;margin-bottom:14px;display:none}
+.fg{margin-bottom:16px}
+.fg label{display:block;font-size:11px;font-weight:700;color:var(--t2);margin-bottom:6px;letter-spacing:.4px;text-transform:uppercase}
+.fg input,.fg select,.fg textarea{width:100%;padding:10px 13px;border:1.5px solid var(--bd2);border-radius:8px;color:var(--t1);background:var(--w);transition:var(--tr);outline:none}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--navy-3);box-shadow:0 0 0 3px rgba(30,64,128,.1)}
+.fg textarea{resize:vertical;min-height:72px}
+.btn-login{width:100%;padding:11px;background:var(--navy);color:#fff;border-radius:8px;font-size:14px;font-weight:600;transition:var(--tr);border:none;cursor:pointer}
+.btn-login:hover{background:var(--navy-2)}
+.l-demo{margin-top:16px;padding:12px;background:var(--s);border-radius:8px;font-size:12px;color:var(--t2);line-height:1.8}
+.l-demo b{color:var(--t1)}
+

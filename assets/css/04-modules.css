@@ -1,0 +1,152 @@
+/* IANNA CRM — assets/css/04-modules.css
+   Estilos específicos de módulos: inventario, WhatsApp, fusión, alertas, gráficas + media queries existentes.
+   Fase 1: reglas movidas intactas (mismo orden de cascada). */
+/* ── INVENTORY ── */
+.inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:7px}
+.lc{border-radius:8px;padding:9px 7px;text-align:center;cursor:pointer;transition:var(--tr);border:2px solid transparent}
+.lc:hover{filter:brightness(.93);transform:translateY(-1px)}
+.lc.sel{border-color:var(--navy)!important;box-shadow:0 0 0 3px rgba(13,31,60,.15)}
+.lc-cl{font-size:13px;font-weight:800;margin-bottom:1px}
+.lc-m2{font-size:10px;opacity:.75}
+.lc-pr{font-size:9.5px;margin-top:2px;opacity:.7}
+.lc-tp{font-size:8.5px;margin-top:1px;font-weight:600;opacity:.8}
+.wa-layout{display:grid;grid-template-columns:300px 1fr 280px;height:calc(100vh - 130px);border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden;background:var(--w)}
+.wa-sidebar{border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow:hidden}
+.wa-sidebar-hdr{padding:14px 16px;border-bottom:1px solid var(--bd);font-weight:700;font-size:13.5px;display:flex;align-items:center;justify-content:space-between}
+.wa-list{flex:1;overflow-y:auto}
+.wa-conv-item{padding:12px 16px;border-bottom:1px solid var(--s2);cursor:pointer;transition:var(--tr);display:flex;align-items:center;gap:10px}
+.wa-conv-item:hover{background:var(--s)}.wa-conv-item.active{background:var(--gold-p)}
+.wa-conv-nm{font-size:13px;font-weight:600}.wa-conv-last{font-size:11.5px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+.wa-conv-time{font-size:10.5px;color:var(--t3);white-space:nowrap;margin-left:auto}
+.wa-chat{display:flex;flex-direction:column;background:#f0f2f5}
+.wa-chat-hdr{background:var(--w);padding:12px 18px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px}
+.wa-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px}
+.wa-bubble{max-width:72%;padding:9px 13px;border-radius:12px;font-size:13px;line-height:1.5;position:relative}
+.wa-bubble.out{background:#dcf8c6;align-self:flex-end;border-bottom-right-radius:3px}
+.wa-bubble.in{background:#fff;align-self:flex-start;border-bottom-left-radius:3px;box-shadow:var(--sh1)}
+.wa-bubble-time{font-size:10px;color:#8896a7;text-align:right;margin-top:3px}
+.wa-input-bar{background:var(--w);padding:12px 16px;border-top:1px solid var(--bd);display:flex;align-items:center;gap:10px}
+.wa-input-bar input{flex:1;border:1.5px solid var(--bd2);border-radius:24px;padding:9px 16px;font-size:13.5px;outline:none;transition:var(--tr)}
+.wa-input-bar input:focus{border-color:var(--navy-3)}
+.wa-info-panel{border-left:1px solid var(--bd);overflow-y:auto;padding:16px;background:var(--w)}
+.wa-nota-interna{background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:8px 12px;font-size:12.5px;color:#5d4037}
+.wa-unread{background:#25d366;color:#fff;border-radius:12px;padding:1px 7px;font-size:10.5px;font-weight:700}
+.k-drag-over{background:rgba(99,102,241,.1)!important;border:2px dashed #6366f1!important}
+/* WhatsApp CRM */
+.wa-layout{display:grid;grid-template-columns:320px 1fr 280px;gap:0;height:calc(100vh - 120px);border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden;background:var(--w)}
+.wa-sidebar{border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow:hidden}
+.wa-search{padding:12px;border-bottom:1px solid var(--bd)}
+.wa-list{flex:1;overflow-y:auto}
+.wa-conv-item{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;transition:var(--tr);border-bottom:1px solid var(--s2)}
+.wa-conv-item:hover{background:var(--s)}
+.wa-conv-item.active{background:#e7f8e9}
+.wa-av{width:42px;height:42px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--navy);flex-shrink:0}
+.wa-name{font-size:13.5px;font-weight:600;margin-bottom:2px}
+.wa-preview{font-size:12px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+.wa-time{font-size:11px;color:var(--t3);flex-shrink:0}
+.wa-chat{display:flex;flex-direction:column;flex:1;overflow:hidden}
+.wa-chat-hdr{padding:12px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px;background:var(--w)}
+.wa-msgs{flex:1;overflow-y:auto;padding:16px;background:#e5ddd5;display:flex;flex-direction:column;gap:8px}
+.wa-bubble{max-width:75%;padding:9px 13px;border-radius:12px;font-size:13.5px;line-height:1.5;position:relative;word-break:break-word}
+.wa-bubble.out{background:#dcf8c6;margin-left:auto;border-bottom-right-radius:3px}
+.wa-bubble.in{background:#fff;margin-right:auto;border-bottom-left-radius:3px}
+.wa-bubble .wa-ts{font-size:10px;color:#8896a7;margin-top:4px;text-align:right}
+.wa-note{background:#fff9c4;border-left:3px solid var(--amber);margin:4px 0;font-size:12px;padding:8px 12px;border-radius:6px;color:var(--t2)}
+.wa-input-bar{padding:10px 14px;border-top:1px solid var(--bd);display:flex;align-items:flex-end;gap:8px;background:var(--w)}
+.wa-input-bar textarea{flex:1;border:1.5px solid var(--bd2);border-radius:8px;padding:8px 12px;font-size:13.5px;resize:none;outline:none;max-height:120px;font-family:inherit}
+.wa-input-bar textarea:focus{border-color:var(--navy-3)}
+.wa-info-panel{border-left:1px solid var(--bd);padding:16px;overflow-y:auto;background:var(--w)}
+.wa-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600;margin:2px;cursor:pointer}
+.wa-no-conv{flex:1;display:flex;align-items:center;justify-content:center;background:#e5ddd5;color:var(--t3);flex-direction:column;gap:8px;font-size:13px}
+.k-drag-over .k-cards{min-height:60px}
+.k-empty{font-size:11.5px;color:var(--t3);text-align:center;padding:12px 0;border:2px dashed var(--bd);border-radius:8px;margin:4px 0}
+.l-disp{background:#d1fae5;color:#065f46}
+.l-apt{background:#fef9c3;color:#854d0e}
+.l-vend{background:#fee2e2;color:#991b1b}
+.l-sub{background:#f1f5f9;color:#64748b;opacity:.7}
+.l-muestra{background:#dbeafe;color:#1e40af}
+.l-especial{background:#ede9fe;color:#6d28d9}
+.l-rapida{background:#fed7aa;color:#c2410c}
+/* Fusion badge */
+.fusion-badge{font-size:8px;background:rgba(109,40,217,.15);color:#6d28d9;border-radius:4px;padding:1px 4px;margin-top:2px;font-weight:700}
+/* Kanban smart drop highlight */
+.k-drag-over-cita{background:rgba(59,130,246,.1)!important;border:2px dashed #3b82f6!important}
+.k-drag-over-apt{background:rgba(249,115,22,.1)!important;border:2px dashed #f97316!important}
+.k-drag-over-seg{background:rgba(99,102,241,.1)!important;border:2px dashed #6366f1!important}
+.l-leg{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.l-leg-i{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--t2)}
+.l-leg-d{width:11px;height:11px;border-radius:3px}
+
+/* ── ALERT ITEMS ── */
+.ali{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:8px;font-size:13px;cursor:pointer;margin-bottom:7px}
+.ali.warn{background:#fffbeb;border:1px solid #fde68a}
+.ali.danger{background:#fef2f2;border:1px solid #fecaca}
+.ali.info{background:#eff6ff;border:1px solid #bfdbfe}
+.al-ttl{font-weight:600;color:var(--t1)}.al-sub{font-size:11.5px;color:var(--t3);margin-top:2px}
+
+/* ── CHART BARS ── */
+.chr{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.chl{font-size:12.5px;color:var(--t2);width:125px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cht{flex:1;height:7px;background:var(--s2);border-radius:4px;overflow:hidden}
+.chf{height:100%;border-radius:4px;transition:width .6s ease}
+.chv{font-size:12px;font-weight:700;min-width:28px;text-align:right}
+
+/* ── COTIZ ── */
+.cotiz{background:var(--s);border-radius:var(--r);padding:14px;margin-top:14px}
+.cz-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px dashed var(--bd);font-size:13px}
+.cz-row.total{border:none;font-weight:700;font-size:15px;padding-top:12px;margin-top:6px;border-top:2px solid var(--bd)!important;border-bottom:none!important;color:var(--navy)}
+.cz-lbl{color:var(--t2)}.cz-val{font-weight:600}
+
+/* ── PROFILE CARD ── */
+.pcard{background:var(--navy);border-radius:var(--rl);padding:28px;color:#fff;margin-bottom:18px;position:relative;overflow:hidden}
+.pcard::before{content:'';position:absolute;top:-40px;right:-40px;width:180px;height:180px;border-radius:50%;background:rgba(201,150,60,.1)}
+.pc-av{width:70px;height:70px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:var(--navy);margin-bottom:14px;border:3px solid rgba(255,255,255,.2);overflow:hidden}
+.pc-av img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+
+/* ── INFO PANEL ── */
+.infop .ir{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--s2);font-size:13px}
+.infop .ir:last-child{border-bottom:none}
+.il{color:var(--t3)}.iv{font-weight:600;text-align:right;max-width:160px;word-break:break-word}
+
+/* ── DET GRID ── */
+.det-grid{display:grid;grid-template-columns:255px 1fr;gap:18px;align-items:start}
+
+/* ── SUPABASE CONFIG PANEL ── */
+.sb-config{background:var(--navy);color:#fff;border-radius:var(--rl);padding:24px;margin-bottom:18px}
+.sb-status-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px}
+.sb-status-dot.connected{background:#10b981}
+.sb-status-dot.disconnected{background:#ef4444}
+
+/* ── IMPORT PREVIEW ── */
+.import-table{max-height:300px;overflow-y:auto;border:1px solid var(--bd);border-radius:8px;margin-top:12px}
+.import-table table{font-size:12px}
+.import-row-ok{background:#f0fdf4}
+.import-row-dup{background:#fef3c7}
+.import-row-err{background:#fef2f2}
+
+/* ── COMISIONES ── */
+.com-total-card{background:linear-gradient(135deg,var(--navy) 0%,var(--navy-3) 100%);border-radius:var(--rl);padding:24px;color:#fff;margin-bottom:18px}
+.com-total-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(255,255,255,.5);margin-bottom:6px}
+.com-total-val{font-size:32px;font-weight:700;color:var(--gold-l)}
+
+/* ── PARAMS MODULE ── */
+.param-section{border:1px solid var(--bd);border-radius:var(--r);padding:18px;margin-bottom:16px}
+.param-section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--t3);margin-bottom:14px}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1024px){.det-grid{grid-template-columns:1fr}}
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}
+  .main,.topbar{margin-left:0;left:0}
+  .kpi-grid{grid-template-columns:1fr 1fr}
+  .fg2{grid-template-columns:1fr}.fg2 .c2{grid-column:span 1}
+  .kanban{flex-direction:column}.k-col{width:100%}
+  .inv-grid{grid-template-columns:repeat(auto-fill,minmax(80px,1fr))}
+  #dash-bot{grid-template-columns:1fr!important}
+}
+@media(max-width:480px){
+  .kpi-grid{grid-template-columns:1fr}.main{padding:16px}
+  .modal{border-radius:14px 14px 0 0;position:fixed;bottom:0;left:0;right:0;max-width:100%;max-height:88vh}
+  .mbd.open{align-items:flex-end;padding:0}
+}
+
