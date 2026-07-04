@@ -313,7 +313,7 @@
 
     <!-- CONFIGURACIÓN -->
     <div class="page" id="page-configuracion">
-      <div class="sechdr"><div><div class="sectl">Configuración</div><div class="secst">Gestión del equipo y conexión de base de datos</div></div></div>
+      <div class="sechdr"><div><div class="sectl">Configuración</div><div class="secst">Gestión del equipo y conexión de base de datos</div></div><button class="btn btn-out" onclick="abrirReporteIntegridad()">🩺 Verificación de integridad</button></div>
       <div class="tabs">
         <div class="tab active" onclick="cfgTab(this,'cfg-ases')">👤 Asesores</div>
         <div class="tab" onclick="cfgTab(this,'cfg-supa')">🗄 Supabase</div>
@@ -1084,6 +1084,20 @@
   </div>
 </div></div>
 <div class="tbx" id="tbx"></div>
+<!-- MODAL: Verificación de integridad (Fase 1.5) -->
+<div class="mbd" id="m-health"><div class="mbox" style="max-width:720px">
+  <div class="mhead"><span>🩺 Verificación de integridad del sistema</span><button class="mx" onclick="closeM('m-health')">×</button></div>
+  <div class="mbody" style="max-height:65vh;overflow-y:auto" id="health-body"></div>
+  <div class="mfoot"><button class="btn btn-out" onclick="abrirReporteIntegridad()">↻ Verificar de nuevo</button><button class="btn btn-navy" onclick="closeM('m-health')">Cerrar</button></div>
+</div></div>
+
+<!-- MODAL: ⚙ Operaciones (Fase 1.8) -->
+<div class="mbd" id="m-operaciones"><div class="mbox" style="max-width:640px">
+  <div class="mhead"><span>⚙ Operaciones — <span id="ops-titulo"></span></span><button class="mx" onclick="closeM('m-operaciones')">×</button></div>
+  <div class="mbody" id="ops-body" style="max-height:65vh;overflow-y:auto"></div>
+  <div class="mfoot"><button class="btn btn-out" onclick="closeM('m-operaciones')">Cerrar</button></div>
+</div></div>
+
 <script src="config/app.config.js"></script>
 <script src="config/empresa.config.js"></script>
 <script src="assets/js/logo.asset.js"></script>
@@ -1113,6 +1127,13 @@
 <script src="modules/whatsapp.module.js"></script>
 <script src="modules/cierre.module.js"></script>
 <script src="services/expediente.service.js"></script>
+<script src="business/folios.business.js"></script>
+<script src="business/motor.business.js"></script>
+<script src="business/operaciones.business.js"></script>
+<script src="business/estados.business.js"></script>
+<script src="business/ids.business.js"></script>
+<script src="business/ops-engine.business.js"></script>
+<script src="business/healthcheck.business.js"></script>
 <script src="modules/cobranza.module.js"></script>
 <script src="modules/cierre-acciones.module.js"></script>
 <script src="modules/documentos.module.js"></script>

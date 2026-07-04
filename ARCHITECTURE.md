@@ -71,6 +71,48 @@ Los módulos no se llaman entre sí directamente: se comunican vía servicios y 
 
 Vercel sirve el directorio tal cual (`vercel.json` con `handle: filesystem`). Subir el contenido completo del proyecto al repositorio; no se requiere build.
 
+## Fase 1.5 — Integridad de datos, motor de reglas y seguridad operativa
+
+Sobre la arquitectura de la Fase 1 se añadió la capa de integridad. Principio rector: **es imposible generar información inconsistente por accidente**; toda operación sensible pasa por el motor antes de ejecutarse, y si una regla falla, la operación se cancela completa (validar primero, escribir después) y el intento queda auditado.
+
+**Componentes nuevos en `/business`:**
+- `motor.business.js` — `IANNA_MOTOR`: validaciones centralizadas (unicidad de vivienda, conversión a venta, cliente único, protección de inventario, eliminaciones protegidas), auditoría automática (usuario, fecha, acción, antes, después, motivo) y bloqueos con mensaje explicativo + registro del intento.
+- `folios.business.js` — `IANNA_FOLIOS`: fuente única de folios para TODOS los documentos (recibos, pagos, cancelaciones y futuros). `peek()` consulta sin consumir (vistas previas); `emitir()` asigna en firme escaneando todas las fuentes, salta colisiones automáticamente y registra cada emisión (`folios_registro` + consecutivo persistente `folio_seq`). **Corrige el bug raíz detectado:** el generador anterior solo veía recibos de apartado (los pagos de cobranza colisionaban) y reabrir un cierre reasignaba folio; ahora el folio de un documento emitido jamás cambia.
+- `operaciones.business.js` — `IANNA_OPERACIONES`: catálogo central. Activas: cancelación de venta/apartado, corrección administrativa. Preparadas con validaciones reales (ejecución en fases futuras): cambio de lote, cambio de cliente, cambio de modelo, cambio de asesor, liberación de inventario, transferencias.
+- `healthcheck.business.js` — `IANNA_HEALTH`: verificación automática al iniciar sesión (gerente/administrador) y bajo demanda en Configuración → 🩺. Revisa: folios duplicados, dos operaciones activas sobre la misma vivienda, coherencia lote↔operación, referencias rotas (prospecto/lote/modelo/asesor inexistentes), pagos sin folio, ventas sin total, expedientes duplicados por teléfono y fracciones huérfanas.
+
+**Reglas aplicadas en los módulos (las ventas no se editan; todo cambio es una operación relacionada):**
+- Inventario protegido: un lote con venta o apartado activo no se edita ni elimina; un lote Disponible con historial tampoco se elimina.
+- Apartados: unicidad validada al crear/editar; conversión a venta validada (jamás doble venta); edición bloqueada fuera de estatus Activo.
+- Cancelaciones: resumen completo de consecuencias antes de confirmar, registro formal en `cancelaciones` con folio único propio y auditoría antes/después.
+- Cliente único: alta bloqueada si el teléfono/correo ya pertenece a otro expediente.
+- Eliminaciones protegidas: prospecto con historial → estatus Inactivo; asesor con historial → desactivado; modelo en uso → desactivado. Solo lo que no tiene relaciones se elimina físicamente (auditado).
+- Corrección administrativa: desbloquear/guardar sobre una venta queda auditado con antes/después.
+- `uid()` reforzado (timestamp + aleatorio): identificadores permanentes a prueba de colisiones.
+
+## Fase 1.8 — Motor de Operaciones, Máquina de Estados e Identificadores Permanentes
+
+Sobre las Fases 1 y 1.5 se construye el **núcleo operativo**. Filosofía de arquitectura adoptada de forma permanente:
+
+> **Ningún módulo es dueño de la información.** Los módulos presentan información y **solicitan operaciones**; el Motor de Operaciones es el único autorizado a modificar información crítica, siempre bajo el mismo pipeline: reglas de negocio → máquina de estados → impacto → confirmación → ejecución → sincronización → auditoría → historial permanente.
+
+**Componentes nuevos en `/business`:**
+- `estados.business.js` — `IANNA_ESTADOS`: máquina de estados con 12 estados (Disponible → Apartado → Contrato firmado → Enganche → Cobranza → Liquidado → Escrituración → Entregado → Postventa, más Cancelado, Reubicado, Suspendido y Rescindido). Cada uno declara **desde**, **hacia**, **operaciones permitidas**, **prohibidas**, **documentos exigidos** y **módulos a refrescar**. Ampliable con `registrar(nombre, def)` sin tocar el núcleo. `estadoDe(ap)` mapea los estatus internos existentes a estados de la máquina, preservando compatibilidad total con la data actual.
+- `ids.business.js` — `IANNA_IDS`: identificadores permanentes (PRO-, CLI-, LOT-, APT-, VEN-, PAG-, REC-, CON-, CAN-, COM-, AUD-, OPE-, GER-, ASE-, BRK-, PRY-, EMP-) con consecutivos persistentes que **jamás se reutilizan**. La migración inicial asigna IDs y **clave física de ubicación** `M###-L###` a todo lo existente, una única vez, auditada. Los nuevos registros reciben su ID al crearse desde el motor.
+- `ops-engine.business.js` — `IANNA_OPS` (motor), `IANNA_SYNC` (sincronización central de módulos) y `IANNA_HISTORIAL` (historial permanente de operaciones, con su propio ID OPE- y sin borrado automático). El motor implementa el pipeline unificado y expone `catalogoPara(ap)`, que alimenta el modal **⚙ Operaciones**.
+
+**Inversión de módulos a solicitantes.** Las funciones públicas de la UI (`convertirVenta`, `cancelarVenta`, `cancelarApartadoModal`) siguen existiendo — no cambian handlers ni firmas — pero ahora son **una línea**: piden la operación al motor. Los cuerpos originales quedaron renombrados a `_ejecutarContratoFirmado`, `_ejecutarCancelacionVenta`, `_ejecutarCancelacionApartado` (ejecutores puros que solo escriben; las validaciones, consecuencias y confirmaciones las hace el motor, una sola vez). El botón único **⚙ Operaciones** en Apartados abre el modal con las acciones permitidas por la máquina de estados para el registro actual — incluidas las operaciones futuras (cambio de lote/modelo/cliente/asesor, transferencia) visibles pero marcadas como "próxima fase".
+
+**Sincronización.** `IANNA_SYNC.refrescar([modulos])` es la única ruta que refresca UI tras una operación; cada estado declara qué módulos toca (inventario, apartados, ingresos, cobranza, dashboard, reportes, auditoría). Los módulos no se llaman entre sí.
+
+**Historial permanente.** Toda operación queda en `historial_operaciones` con: id OPE-, tipo, registro afectado, id público, usuario, fecha, hora, estado anterior, estado nuevo, motivo, resultado (ok/bloqueada/cancelada por el usuario/error) y detalle. Nunca se elimina.
+
+**Decisiones conscientes documentadas (estabilidad > agresividad):**
+- Los estados posteriores a "Contrato firmado" (Enganche, Cobranza, Liquidado, Escrituración, Entregado, Postventa) están **declarados y transitables por el motor**, pero ningún flujo comercial los recorre aún: llegan en fases futuras sin modificar este núcleo.
+- Las operaciones futuras (`cambio_lote`, `cambio_modelo`, `cambio_cliente`, `cambio_asesor`, `transferencia`) están **registradas en `IANNA_OPERACIONES` con validaciones reales**, expuestas en ⚙ Operaciones y bloqueadas de ejecución con toast informativo. La UX está lista para la Fase 2 sin deuda de arquitectura.
+- El estatus interno de los registros (`estatus:'Activo'|'Venta'|…`) se conserva porque toda la base de datos existente lo referencia; la máquina lo interpreta vía `estadoDe(ap)`. Migrarlo a `estado_maquina` directo sería un cambio mecánico posterior sin implicaciones lógicas.
+- El historial se persiste íntegro en `localStorage` en esta fase; su migración a un almacén dedicado llega junto con Supabase (Fase multi-empresa).
+
 ## Pendientes explícitos para Fase 2 (decisión consciente: estabilidad > agresividad)
 
 - Migrar llamadas `DS.*` de los módulos a los servicios de entidades.
