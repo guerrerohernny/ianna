@@ -43,12 +43,9 @@ function renderApartados(){
       <td style="font-weight:700;color:var(--navy)">${mxn(a.valor_operacion)}</td>
       <td><span class="badge" style="background:${sc}18;color:${sc}"><span class="bdot" style="background:${sc}"></span>${a.estatus}</span></td>
       <td style="white-space:nowrap;display:flex;gap:4px;flex-wrap:wrap">
-        ${a.estatus==='Activo'?`<button class="btn btn-out btn-xs" onclick="editarApartado('${a.id}')">✏️</button>`:''}
+        <button class="btn btn-navy btn-xs" onclick="abrirOperaciones('${a.id}')">⚙ Operaciones</button>
         ${a.estatus==='Activo'?`<button class="btn btn-gold btn-xs" onclick="generarCierre('${a.id}')">📄 Cierre</button>`:''}
-        ${a.estatus==='Activo'?`<button class="btn btn-green btn-xs" onclick="convertirVenta('${a.id}')">🤝 Venta</button>`:''}
-        ${a.estatus==='Activo'?`<button class="btn btn-red btn-xs" onclick="cancelarApartadoModal('${a.id}')">✕</button>`:''}
         ${a.estatus==='Venta'?`<button class="btn btn-gold btn-xs" onclick="abrirCobranzaVenta('${a.id}')">💰 Cobranza</button>`:''}
-        ${a.estatus==='Venta'?`<button class="btn btn-red btn-xs" onclick="openCancelarVenta('${a.id}')">✕ Cancelar</button>`:''}
         ${a.estatus==='Venta Cancelada'?`<span style="font-size:10px;color:#dc2626">Cancelada</span>`:''}
       </td>
     </tr>`;
@@ -221,6 +218,16 @@ function saveApartado(){
   const _loteMz=getLote(clave_lote);
   if(modelo_id==='MORELLO'&&_loteMz&&String(_loteMz.mz)!=='10'){ toast('El modelo Morello solo se construye en la Manzana 10','err'); return; }
   const metodo_pago=$('ap-metodo-pago')?.value||'Transferencia';
+  // ── MOTOR DE REGLAS: unicidad de vivienda (jamás dos operaciones activas sobre el mismo lote) ──
+  const editIdVal=$('ap-lote').dataset.editId||'';
+  const adClavePre=($('ap-lote-adic')?.value)||'';
+  const valAp=IANNA_MOTOR.validarNuevoApartado({clave_lote, clave_lote_adicional:adClavePre, prospectoId, editId:editIdVal||undefined});
+  if(!valAp.ok){ IANNA_MOTOR.bloquear('apartados', editIdVal||clave_lote, editIdVal?'EDITAR_APARTADO':'CREAR_APARTADO', valAp.errores.join(' ')); return; }
+  // ── MÁQUINA DE ESTADOS: Disponible → Apartado ──
+  if(!editIdVal){
+    const trAp=IANNA_ESTADOS.puedeTransicionar('Disponible','Apartado');
+    if(!trAp.ok){ IANNA_MOTOR.bloquear('apartados', clave_lote, 'CREAR_APARTADO', trAp.razon); return; }
+  }
   const valor_operacion=calcCotiz()||0;
   const caDesc=$('ap-ca-desc').value.trim();
   const caM2=parseFloat($('ap-ca-m2').value)||0;
@@ -253,10 +260,14 @@ function saveApartado(){
   }
 
   DS.create('apartados',ap);
+  IANNA_MOTOR.auditar('apartados', clave_lote, 'CREAR_APARTADO', {}, {cliente:DS.findOne('prospectos',prospectoId)?.nombre, lote:clave_lote, modelo:ap.modelo_nombre, monto:ap.monto_enganche, metodo:metodo_pago}, 'Registro de apartado');
+  { const _nw=DS.find('apartados').find(x=>x.clave_lote===clave_lote&&x.estatus==='Activo');
+    if(_nw){ IANNA_IDS.alCrearApartado(_nw);
+      IANNA_HISTORIAL.registrar({tipo:'crear_apartado', registroId:_nw.id, idPublico:DS.findOne('apartados',_nw.id).id_publico, estadoAnterior:'Disponible', estadoNuevo:'Apartado', motivo:'Registro de apartado', resultado:'ok'}); } }
   // Generar recibo INMEDIATAMENTE al registrar: se abre en pantalla y queda guardado en el expediente
   const newAp = DS.find('apartados').find(a=>a.prospectoId===prospectoId&&a.clave_lote===clave_lote&&a.estatus==='Activo');
   if(newAp){
-    const folio = getNextFolio();
+    const folio = IANNA_FOLIOS.emitir('recibo_apartado', newAp.id);
     const pData=DS.findOne('prospectos',prospectoId);
     const lData=getLote(clave_lote);
     const mData=getMod(modelo_id);
@@ -313,6 +324,8 @@ function saveApartado(){
 }
 function editarApartado(aid){
   const ap=DS.findOne('apartados',aid); if(!ap) return;
+  // ── MOTOR: las ventas y operaciones cerradas NO se editan; todo cambio es una nueva operación ──
+  if(ap.estatus!=='Activo'){ IANNA_MOTOR.bloquear('apartados', aid, 'EDITAR_APARTADO', `Una operación con estatus "${ap.estatus}" no puede editarse. Los cambios sobre ventas se realizan mediante cancelación formal u operaciones relacionadas.`); return; }
   // Pre-fill the apartado modal with existing data
   populateSelects();
   $('ap-cli').value=ap.prospectoId||'';
@@ -330,10 +343,13 @@ function editarApartado(aid){
   if(ap.modelo_id) onModeloChange();
   openM('m-apt');
 }
-function cancelarApartadoModal(aid){
+// ── SOLICITANTE ──
+function cancelarApartadoModal(aid){ return IANNA_OPS.ejecutar('cancelacion_apartado',{aid}); }
+
+// ── EJECUTOR ──
+function _ejecutarCancelacionApartado(aid){
   const ap=DS.findOne('apartados',aid); if(!ap) return;
   const p=DS.findOne('prospectos',ap.prospectoId);
-  if(!confirm(`¿Cancelar el apartado de ${p?p.nombre:'este cliente'} — Lote ${ap.clave_lote}?\n\nEl lote volverá a Disponible.`)) return;
   const now=new Date().toISOString();
   // ¿Conservar el modelo? Solo si la construcción física ya inició (queda como Entrega Rápida sin cliente)
   const lPrin=getLote(ap.clave_lote);
@@ -357,8 +373,10 @@ function cancelarApartadoModal(aid){
   }
   DS._save(DS.db);
   DS.update('prospectos',ap.prospectoId,{estatus:'Seguimiento'});
+  const regCancel=IANNA_MOTOR.registrarCancelacion('apartado', ap, 'Cancelado manualmente', 'Disponible');
+  IANNA_MOTOR.auditar('apartados', aid, 'CANCELAR_APARTADO', {estatus:'Activo', lote:ap.clave_lote}, {estatus:'Cancelado', folio_cancelacion:regCancel.folio}, 'Cancelación formal de apartado');
   renderApartados(); renderInventario(); renderDashboard();
-  toast('Apartado cancelado — lote liberado ✓','warn');
+  toast(`Apartado cancelado — lote liberado ✓ (Folio de cancelación ${String(regCancel.folio).padStart(8,'0')})`,'warn');
 }
 function editarFechaApartado(aid, fecha){
   if(!fecha||CU.rol!=='gerente') return;
@@ -366,9 +384,12 @@ function editarFechaApartado(aid, fecha){
   auditLog('apartados',aid,'UPDATE_FECHA',{},{fecha_apartado:fecha});
   toast('Fecha actualizada ✓','ok');
 }
-function convertirVenta(aid){
-  const ap=DS.findOne('apartados',aid); if(!ap) return;
-  if(!confirm('¿Confirmar CONTRATO FIRMADO? El apartado se convierte en venta.')) return;
+// ── SOLICITANTE ──
+function convertirVenta(aid){ return IANNA_OPS.ejecutar('contrato_firmado',{aid}); }
+
+// ── EJECUTOR (solo escribe; validaciones/confirmación las hizo el Motor de Operaciones) ──
+function _ejecutarContratoFirmado(aid){
+  const ap=DS.findOne('apartados',aid); if(!ap) return false;
   const now=new Date().toISOString();
   const l=getLote(ap.clave_lote)||{}; const m=getMod(ap.modelo_id)||{};
   const P=getP();
@@ -390,6 +411,7 @@ function convertirVenta(aid){
   DS.update('prospectos',ap.prospectoId,{estatus:'Venta'});
   DS.create('seguimientos',{prospectoId:ap.prospectoId,tipo:'Nota interna',nota:`¡VENTA CERRADA! Lote ${ap.clave_lote}`,fecha:now,usuario:CU.id,estatusCambio:'Venta'});
   renderApartados(); renderInventario(); renderDashboard(); filterProsp();
+  IANNA_MOTOR.auditar('apartados', aid, 'CONVERTIR_VENTA', {estatus:'Activo'}, {estatus:'Venta', total_operacion:totalOp, lote:ap.clave_lote}, 'Contrato firmado');
   toast('¡Venta registrada! 🎉','ok');
 }
 

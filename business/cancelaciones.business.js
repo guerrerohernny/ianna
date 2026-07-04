@@ -17,8 +17,13 @@ function openCancelarVenta(aid){
   const destino=confirm(`¿Volver el lote ${ap.clave_lote} a:\n\n✅ Aceptar → Disponible\n❌ Cancelar → Apartado`)?'Disponible':'Apartado';
   cancelarVenta(aid, motivo.trim(), destino);
 }
-function cancelarVenta(aid, motivo, destinoLote){
+// ── SOLICITANTE ──
+function cancelarVenta(aid, motivo, destinoLote){ return IANNA_OPS.ejecutar('cancelacion_venta',{aid, motivo, destino:destinoLote}); }
+
+// ── EJECUTOR ──
+function _ejecutarCancelacionVenta(aid, motivo, destinoLote){
   const ap=DS.findOne('apartados',aid); if(!ap) return;
+  const _antesCancel={estatus:ap.estatus, total_operacion:ap.total_operacion, fecha_venta:ap.fecha_venta};
   const now=new Date().toISOString();
   // 1. Marcar apartado como Venta Cancelada + guardar auditoría
   if(destinoLote==='Apartado'){
@@ -69,6 +74,8 @@ function cancelarVenta(aid, motivo, destinoLote){
   const estatusProsp = destinoLote==='Apartado' ? 'Apartado' : 'Seguimiento';
   DS.update('prospectos',ap.prospectoId,{estatus:estatusProsp});
   DS.create('seguimientos',{prospectoId:ap.prospectoId,tipo:'Nota interna',nota:`Venta CANCELADA — Lote ${ap.clave_lote} — Motivo: ${motivo} — Lote vuelto a: ${destinoLote}`,fecha:now,usuario:CU.id,estatusCambio:estatusProsp});
+  const regCancel=IANNA_MOTOR.registrarCancelacion('venta', ap, motivo, destinoLote);
+  IANNA_MOTOR.auditar('apartados', aid, destinoLote==='Apartado'?'REVERTIR_VENTA_A_APARTADO':'CANCELAR_VENTA', _antesCancel, {estatus:destinoLote==='Apartado'?'Activo':'Venta Cancelada', destino:destinoLote, folio_cancelacion:regCancel.folio}, motivo);
   renderApartados(); renderInventario(); renderDashboard(); renderIngresos();
-  toast(`Venta cancelada. Lote ${ap.clave_lote} → ${destinoLote} ✓`,'warn',5000);
+  toast(`Venta cancelada. Lote ${ap.clave_lote} → ${destinoLote} ✓ (Folio de cancelación ${String(regCancel.folio).padStart(8,'0')})`,'warn',5000);
 }

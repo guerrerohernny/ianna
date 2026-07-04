@@ -155,8 +155,16 @@ function saveProspecto(){
   if(!nm||!ph){ toast('Nombre y teléfono son requeridos','err'); return; }
   const pid=$('mp-id').value;
   const data={nombre:nm,telefono:fmtTelVal(ph),correo:$('mp-em').value.trim(),fuente:$('mp-fue').value,estadoCivil:$('mp-ec').value,presupuesto:parseMoneyInput($('mp-pre').value),enganche:parseMoneyInput($('mp-eng').value),ingresos:parseMoneyInput($('mp-ing').value),estatus:$('mp-est').value,asesor:CU.rol==='asesor'?CU.id:$('mp-ases').value,comentarios:$('mp-com').value.trim(),brokerId:$('mp-fue').value==='Broker'?$('mp-broker').value:null};
-  if(pid){ DS.update('prospectos',pid,data); toast('Prospecto actualizado ✓','ok'); }
-  else { data.fechaRegistro=new Date().toISOString(); DS.create('prospectos',data); toast('Prospecto registrado ✓','ok'); }
+  // ── MOTOR: cliente único — jamás dos expedientes para la misma persona ──
+  const valDup=IANNA_MOTOR.validarProspectoUnico({telefono:data.telefono, correo:data.correo, editId:pid||undefined});
+  if(!valDup.ok){ IANNA_MOTOR.bloquear('prospectos', valDup.dup.id, 'CREAR_PROSPECTO_DUPLICADO', valDup.errores.join(' ')); return; }
+  if(pid){
+    const antesP=DS.findOne('prospectos',pid)||{};
+    DS.update('prospectos',pid,data);
+    IANNA_MOTOR.auditar('prospectos', pid, 'EDITAR_PROSPECTO', {nombre:antesP.nombre, telefono:antesP.telefono, estatus:antesP.estatus}, {nombre:data.nombre, telefono:data.telefono, estatus:data.estatus}, 'Edición de expediente');
+    toast('Prospecto actualizado ✓','ok');
+  }
+  else { data.fechaRegistro=new Date().toISOString(); DS.create('prospectos',data); IANNA_MOTOR.auditar('prospectos', data.telefono, 'CREAR_PROSPECTO', {}, {nombre:data.nombre, telefono:data.telefono}, 'Alta de prospecto'); toast('Prospecto registrado ✓','ok'); }
   closeM('m-prosp'); filterProsp(); renderDashboard(); updateBell();
 }
 function onFuenteChange(){
@@ -167,14 +175,23 @@ function editProspecto(id){ closeM('m-det'); setTimeout(()=>openProspectoModal(i
 function eliminarProspecto(pid){
   if(!pid) return;
   const p=DS.findOne('prospectos',pid);
-  const apsActivos=DS.find('apartados',{prospectoId:pid}).filter(a=>a.estatus==='Activo'||a.estatus==='Venta');
-  if(apsActivos.length){
-    const tipos=apsActivos.map(a=>a.estatus==='Venta'?'venta':'apartado').join(', ');
-    if(!confirm(`⚠️ Este cliente tiene un ${tipos} vigente (Lote ${apsActivos.map(a=>a.clave_lote).join(', ')}).\n\n¿Deseas continuar y eliminarlo de todas formas?`)) return;
+  // ── MOTOR: eliminaciones protegidas — la información histórica NO se borra ──
+  const chk=IANNA_MOTOR.puedeEliminarProspecto(pid);
+  if(!chk.fisico){
+    const r=chk.relaciones;
+    const det=[r.apartados?`${r.apartados} apartado(s)/venta(s)`:null, r.seguimientos?`${r.seguimientos} seguimiento(s)`:null, r.cotizaciones?`${r.cotizaciones} cotización(es)`:null].filter(Boolean).join(', ');
+    if(!confirm(`"${p?.nombre}" tiene información relacionada (${det}).\n\nPor integridad, el expediente NO se elimina: se marcará como INACTIVO (se oculta de las vistas y conserva todo su historial).\n\n¿Marcar como Inactivo?`)) return;
+    DS.update('prospectos',pid,{estatus:'Inactivo', inactivado_fecha:new Date().toISOString(), inactivado_usuario:CU.id});
+    IANNA_MOTOR.auditar('prospectos', pid, 'INACTIVAR_PROSPECTO', {estatus:p?.estatus}, {estatus:'Inactivo', relaciones:det}, 'Eliminación protegida: expediente con historial pasa a Inactivo');
+    closeM('m-det'); filterProsp(); renderDashboard();
+    toast(`"${p?.nombre}" marcado como Inactivo — historial conservado ✓`,'warn');
+    return;
   }
-  if(!confirm(`¿Eliminar a "${p?.nombre}" permanentemente? Esta acción no se puede deshacer.`)) return;
+  if(!confirm(`¿Eliminar a "${p?.nombre}" permanentemente? (No tiene historial relacionado.)`)) return;
   DS.delete('prospectos',pid);
+  IANNA_MOTOR.auditar('prospectos', pid, 'ELIMINAR_PROSPECTO', {nombre:p?.nombre}, {}, 'Eliminación física: expediente sin relaciones');
   closeM('m-det'); filterProsp(); renderDashboard();
+
   toast('Prospecto eliminado','warn');
 }
 function openDetalle(pid){

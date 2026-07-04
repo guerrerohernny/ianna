@@ -415,6 +415,12 @@ function confirmarSeparacion(){
   toast(`Fracción separada de ${clave} → fusionada con ${dest} ✓`,'ok',4000);
 }
 function saveLote(){
+  // ── MOTOR: inventario protegido — una vivienda con venta o apartado activo NO se modifica ──
+  const claveEdit=$('le-id').value;
+  if(claveEdit){
+    const prot=IANNA_MOTOR.loteProtegido(claveEdit);
+    if(prot.protegido){ IANNA_MOTOR.bloquear('inventario', claveEdit, 'EDITAR_LOTE', prot.razon); return; }
+  }
   const mz=parseInt($('le-mz').value); const loteNum=$('le-lote').value.trim();
   const ter=parseFloat($('le-ter').value); const exc=parseFloat($('le-exc').value)||0;
   const plus=parseFloat($('le-plus').value)||0; const tipo=$('le-tipo').value;
@@ -439,13 +445,15 @@ function saveLote(){
       DS.db.inventario[li]={...old,mz,lote:loteNum,terreno:parseFloat(ter.toFixed(3)),excedente:parseFloat(exc.toFixed(3)),plusvalia:plus,tipo_ubicacion:tipo,tipo,estado:estFinal,valor_terreno,modelo_asignado:modeloAsg,cliente_asignado:clienteAsg,fecha_operacion:fechaOp,dir_oficial:$('le-dir-oficial').value.trim(),historial:hist};
       DS._save(DS.db);
     }
-    toast('Lote actualizado ✓','ok');
+    IANNA_MOTOR.auditar('inventario', claveEdit||('nuevo'), claveEdit?'EDITAR_LOTE':'CREAR_LOTE', {}, {mz:$('le-mz').value, lote:$('le-lote').value, estado:$('le-est').value}, claveEdit?'Edición de lote (sin operación activa)':'Alta de lote');
+  toast('Lote actualizado ✓','ok');
   } else {
     const loteEsNumero=/^\d+$/.test(String(loteNum));
     const nuevaClave=String(mz)+(loteEsNumero?String(loteNum).padStart(2,'0'):String(loteNum));
     if(DS.db.inventario.some(x=>x.clave===nuevaClave)){ toast(`Ya existe un lote con clave ${nuevaClave}`,'err'); return; }
     DS.db.inventario.push({clave:nuevaClave,mz,lote:loteNum,estado:estFinal,terreno:parseFloat(ter.toFixed(3)),excedente:parseFloat(exc.toFixed(3)),precio_m2:9000,plusvalia:plus,valor_terreno,tipo,modelo_asignado:modeloAsg,cliente_asignado:clienteAsg,fecha_operacion:fechaOp,dir_oficial:$('le-dir-oficial').value.trim(),historial:[histEntry]});
     DS._save(DS.db);
+    IANNA_MOTOR.auditar('inventario', $('le-mz').value+''+$('le-lote').value, 'CREAR_LOTE', {}, {mz:$('le-mz').value, lote:$('le-lote').value, estado:$('le-est').value}, 'Alta de lote');
     toast('Lote creado ✓','ok');
   }
   closeM('m-lote-edit'); renderInventario(); populateSelects();
@@ -454,10 +462,14 @@ function deleteLote(){
   const clave=$('le-id').value; if(!clave) return;
   const l=getLote(clave);
   if(l?.estado!=='Disponible'){ toast('Solo se pueden eliminar lotes Disponibles','warn'); return; }
+  // ── MOTOR: eliminaciones protegidas — un lote con historial de operaciones no se borra ──
+  const delChk=IANNA_MOTOR.puedeEliminarLote(clave);
+  if(!delChk.fisico){ IANNA_MOTOR.bloquear('inventario', clave, 'ELIMINAR_LOTE', `El lote ${clave} tiene ${delChk.refs} operación(es) en su historial. La información histórica no se elimina; el lote permanece en el inventario.`); return; }
   if(!confirm(`¿Eliminar lote ${clave}? Esta acción no se puede deshacer.`)) return;
   DS.db.inventario=DS.db.inventario.filter(l=>l.clave!==clave);
   DS._save(DS.db);
   closeM('m-lote-edit'); renderInventario(); populateSelects();
+  IANNA_MOTOR.auditar('inventario', clave, 'ELIMINAR_LOTE', {clave}, {}, 'Lote sin historial eliminado');
   toast('Lote eliminado','warn');
 }
 

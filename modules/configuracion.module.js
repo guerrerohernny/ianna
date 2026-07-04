@@ -50,9 +50,19 @@ function saveAsesor(){
 }
 function deleteAsesor(){
   const aid=$('as-id').value; if(!aid) return;
-  if(DS.find('prospectos',{asesor:aid}).length){ toast('Reasigna los prospectos primero','warn'); return; }
-  if(!confirm('¿Eliminar este asesor permanentemente?')) return;
-  DS.delete('usuarios',aid); closeM('m-asesor'); renderAsesoresGrid(); populateSelects(); toast('Asesor eliminado','warn');
+  const u=getUser(aid);
+  // ── MOTOR: eliminaciones protegidas — un asesor con historial se desactiva, no se borra ──
+  if(IANNA_MOTOR.asesorEnUso(aid)){
+    if(!confirm(`${u?.nombre||'Este asesor'} tiene prospectos u operaciones en su historial.\n\nPor integridad NO se elimina: se marcará como INACTIVO (deja de aparecer en las listas y conserva su historial y comisiones).\n\n¿Desactivar?`)) return;
+    DS.update('usuarios',aid,{activo:false});
+    IANNA_MOTOR.auditar('usuarios', aid, 'DESACTIVAR_ASESOR', {activo:true}, {activo:false}, 'Eliminación protegida: asesor con historial');
+    closeM('m-asesor'); renderAsesoresGrid(); populateSelects(); toast('Asesor desactivado — historial conservado ✓','warn');
+    return;
+  }
+  if(!confirm('¿Eliminar este asesor permanentemente? (Sin historial relacionado.)')) return;
+  DS.delete('usuarios',aid);
+  IANNA_MOTOR.auditar('usuarios', aid, 'ELIMINAR_ASESOR', {nombre:u?.nombre}, {}, 'Eliminación física: sin relaciones');
+  closeM('m-asesor'); renderAsesoresGrid(); populateSelects(); toast('Asesor eliminado','warn');
 }
 function cfgTab(btn,pane){ $$('#page-configuracion .tab').forEach(t=>t.classList.remove('active')); $$('#page-configuracion .tp').forEach(t=>t.classList.remove('active')); btn.classList.add('active'); $(pane).classList.add('active'); }
 

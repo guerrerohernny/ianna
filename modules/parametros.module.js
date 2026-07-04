@@ -67,7 +67,18 @@ function updateModelo(i,field,val){
   else mods[i][field]=val;
   DS.db.modelos=mods; DS._save(DS.db);
 }
-function deleteModelo(i){ const mods=DS.getModelos(); mods.splice(i,1); DS.db.modelos=mods; DS._save(DS.db); renderModelosTable(); }
+function deleteModelo(i){
+  const mods=DS.getModelos(); const mod=mods[i]; if(!mod) return;
+  // ── MOTOR: un modelo usado en operaciones no se elimina — se desactiva ──
+  if(IANNA_MOTOR.modeloEnUso(mod.id)){
+    mods[i]={...mod, activo:false}; DS.db.modelos=mods; DS._save(DS.db); renderModelosTable();
+    IANNA_MOTOR.auditar('modelos', mod.id, 'DESACTIVAR_MODELO', {activo:true}, {activo:false}, 'Eliminación protegida: modelo con operaciones en historial');
+    toast(`"${mod.nombre}" tiene operaciones en su historial: se desactivó (no se elimina) ✓`,'warn',5000);
+    return;
+  }
+  mods.splice(i,1); DS.db.modelos=mods; DS._save(DS.db); renderModelosTable();
+  IANNA_MOTOR.auditar('modelos', mod.id, 'ELIMINAR_MODELO', {nombre:mod.nombre}, {}, 'Eliminación física: sin operaciones');
+}
 function addModeloRow(){
   const mods=DS.getModelos();
   mods.push({id:'MOD_'+uid(),nombre:'Nuevo',precio:0,construccion:0,recamaras:3,banos:2.5,desc:'',activo:true});

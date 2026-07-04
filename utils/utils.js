@@ -8,7 +8,8 @@
 // ================================================================
 const $=s=>document.getElementById(s);
 const $$=s=>document.querySelectorAll(s);
-const uid=()=>'_'+Math.random().toString(36).substr(2,9);
+// ID único permanente: marca de tiempo + aleatorio (a prueba de colisiones)
+const uid=()=>'_'+Date.now().toString(36)+Math.random().toString(36).substr(2,7);
 
 function mxn(n){ return '$'+Math.round(n||0).toLocaleString('es-MX'); } // Round only at display
 function parseMoneyInput(v){ return parseFloat(String(v||'').replace(/,/g,''))||0; }

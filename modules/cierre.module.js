@@ -28,8 +28,9 @@ function generarCierre(aid){
   // Generate or get numero de cliente
   const numCliente = getOrCreateNumCliente(ap.prospectoId);
 
-  // Generate folio recibo
-  const folio = getNextFolio();
+  // Folio del recibo: si el apartado YA tiene folio, se reutiliza SIEMPRE
+  // (reabrir un cierre jamás cambia el folio de un documento emitido).
+  const folio = ap.folio_recibo ? String(ap.folio_recibo).padStart(8,'0') : getNextFolio();
 
   // Store context
   _cierreData = {ap, l, m, p, numCliente, folio, asesorNombre:(getUser(ap.asesor)?.nombre)||CU.nombre, formaPago:(FORMA_PAGO_TXT[ap.metodo_pago]||ap.metodo_pago||null)};
@@ -172,7 +173,7 @@ function guardarDatosCierre(){
   const cli = getClienteData();
   DS.update('apartados', _cierreData.ap.id, {
     datos_cierre: cli,
-    folio_recibo: parseInt(_cierreData.folio)
+    folio_recibo: IANNA_MOTOR.asegurarFolioCierre()
   });
   toast('Datos del cliente guardados ✓','ok');
 }
@@ -190,10 +191,10 @@ function getOrCreateNumCliente(prospectoId){
 }
 
 function getNextFolio(){
-  const apartados = DS.find('apartados').filter(a=>a.folio_recibo);
-  const folios = apartados.map(a=>parseInt(a.folio_recibo)||0);
-  const nextNum = folios.length>0 ? Math.max(...folios)+1 : 300;
-  return String(nextNum).padStart(8,'0');
+  // Fase 1.5: delega al servicio central de folios (escanea TODAS las
+  // fuentes: recibos, pagos, cancelaciones y registro). Solo consulta,
+  // no consume: la emisión en firme ocurre al guardar (IANNA_FOLIOS.emitir).
+  return IANNA_FOLIOS.peek();
 }
 
 function cierreTab(n){

@@ -26,7 +26,7 @@ async function descargarCierreZIP(){
 
   calcCierre();
   const snap = construirSnapshotCierre();
-  DS.update('apartados',_cierreData.ap.id,{ doc_snapshot: snap, folio_recibo: parseInt(_cierreData.folio), cierre_generado: true });
+  DS.update('apartados',_cierreData.ap.id,{ doc_snapshot: snap, folio_recibo: IANNA_MOTOR.asegurarFolioCierre(), cierre_generado: true });
   _cierreData.ap.cierre_generado = true;
   // Registrar todos los documentos del expediente
   Object.keys(DOC_LABELS).forEach(fn=>{

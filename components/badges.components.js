@@ -4,7 +4,7 @@
    Fase 1 (refactor): código movido intacto desde el archivo original.
    ════════════════════════════════════════════════════════════════ */
 // Estatus inactivos (se ocultan por defecto)
-const ESTATUS_INACTIVOS=['No interesado','No le alcanza','Compró en otro lado'];
+const ESTATUS_INACTIVOS=['No interesado','No le alcanza','Compró en otro lado','Inactivo'];
 const ESTATUS_ACTIVOS=['Nuevo','Contactado','Cita agendada','Visitó desarrollo','Seguimiento','Apartado','Venta'];
 
 function sBadge(est){

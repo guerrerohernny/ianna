@@ -18,6 +18,8 @@ function doLogin(){
   $('sql-schema').textContent=SUPABASE_SCHEMA;
   // Only NOW reveal the app — content is already painted, no flash
   $('login-screen').style.display='none'; $('app').style.display='block';
+  // ── Verificación de integridad al iniciar sesión (gerente/administrador) ──
+  if(CU.rol==='gerente'||CU.rol==='administrador'){ setTimeout(()=>{ try{ IANNA_HEALTH.checkSilencioso(); }catch(e){} }, 900); }
 }
 // li-pass keydown handled in DOMContentLoaded below
 function doLogout(){ CU=null; $('app').style.display='none'; $('login-screen').style.display='flex'; }

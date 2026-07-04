@@ -27,7 +27,10 @@ function guardarCierreCompleto(silencioso){
   if(!nombre){ toast('Captura el nombre del cliente en la pestaña 1','err'); cierreTab(0); return false; }
   calcCierre();
   const snap=construirSnapshotCierre();
-  DS.update('apartados',_cierreData.ap.id,{ datos_cierre:getClienteData(), doc_snapshot:snap, folio_recibo:parseInt(_cierreData.folio) });
+  const esVentaCorr=(DS.findOne('apartados',_cierreData.ap.id)?.estatus==='Venta');
+  const antesCorr=esVentaCorr?(DS.findOne('apartados',_cierreData.ap.id).datos_cierre||{}):null;
+  DS.update('apartados',_cierreData.ap.id,{ datos_cierre:getClienteData(), doc_snapshot:snap, folio_recibo:IANNA_MOTOR.asegurarFolioCierre() });
+  if(esVentaCorr) IANNA_MOTOR.auditar('apartados',_cierreData.ap.id,'CORRECCION_ADMINISTRATIVA',{datos_cierre:antesCorr},{datos_cierre:getClienteData()},'Guardado sobre venta cerrada (edición habilitada)');
   if(!silencioso) toast('Datos del cierre guardados ✓','ok');
   return true;
 }
@@ -42,7 +45,7 @@ function abrirDocCierre(fn){
   if(fn==='imprimirPagares'&&!(_cierreData.pagares&&_cierreData.pagares.length)){ toast('Esta operación no tiene pagarés (contado)','warn'); return; }
   calcCierre();
   const snap=construirSnapshotCierre();
-  DS.update('apartados',_cierreData.ap.id,{ datos_cierre:getClienteData(), doc_snapshot:snap, folio_recibo:parseInt(_cierreData.folio), cierre_generado:true });
+  DS.update('apartados',_cierreData.ap.id,{ datos_cierre:getClienteData(), doc_snapshot:snap, folio_recibo:IANNA_MOTOR.asegurarFolioCierre(), cierre_generado:true });
   _cierreData.ap.cierre_generado=true;
   registrarDocumento(_cierreData.ap.id, fn, DOC_LABELS[fn]);
   try{ window[fn](); }catch(e){ console.error('Error generando',fn,e); toast('Error al generar el documento','err'); return; }

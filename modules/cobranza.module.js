@@ -69,7 +69,7 @@ function registrarPagoCobranza(){
   if(metodo==='Efectivo'&&(d.efectivo+monto)>d.topeEfectivo){
     if(!confirm(`⚠️ ALERTA LFPIORPI\n\nCon este pago el efectivo acumulado sería ${mxn(d.efectivo+monto)}, superando el tope legal de ${mxn(d.topeEfectivo)} (8,025 UMA).\n\nRecibir este efectivo implica sanciones conforme a la ley.\n\n¿Registrar de todas formas?`)) return;
   }
-  const folio=getNextFolio();
+  const folio=IANNA_FOLIOS.emitir('pago', _cierreData.ap.id);
   const pago={id:'pg'+Date.now(), fecha, monto, metodo, concepto, folio:parseInt(folio), usuario:CU.id, registrado:new Date().toISOString()};
   const ap=DS.findOne('apartados',_cierreData.ap.id);
   const pagos=[...(ap.pagos||[]),pago];
@@ -88,6 +88,7 @@ function registrarPagoCobranza(){
   _cierreData.pagoActual=null;
   $('cob-monto').value='';
   renderCobranza();
+  IANNA_MOTOR.auditar('apartados', _cierreData.ap.id, 'REGISTRAR_PAGO', {}, {monto:pago.monto, metodo:pago.metodo, concepto:pago.concepto, folio:pago.folio}, 'Pago de cobranza con recibo');
   toast(`Pago registrado — Recibo folio ${String(pago.folio).padStart(8,'0')} ✓`,'ok');
 }
 function reabrirReciboPago(apId,pagoId){
@@ -190,7 +191,11 @@ function setCierreLock(locked){
   const unlockBtn=$('btn-cierre-unlock');
   if(unlockBtn) unlockBtn.style.display=locked?'inline-flex':'none';
   window._cierreLocked=locked;
-  if(!locked) toast('Edición habilitada — puedes modificar y guardar','ok');
+  if(!locked){
+    const apLock=_cierreData&&DS.findOne('apartados',_cierreData.ap.id);
+    if(apLock&&apLock.estatus==='Venta') IANNA_MOTOR.auditar('apartados', apLock.id, 'CORRECCION_ADMINISTRATIVA_DESBLOQUEO', {}, {}, 'Edición habilitada sobre venta cerrada');
+    toast('Edición habilitada — puedes modificar y guardar','ok');
+  }
 }
 function abrirCobranzaVenta(aid){
   generarCierre(aid);
