@@ -75,6 +75,23 @@ function _ejecutarCancelacionVenta(aid, motivo, destinoLote){
   DS.update('prospectos',ap.prospectoId,{estatus:estatusProsp});
   DS.create('seguimientos',{prospectoId:ap.prospectoId,tipo:'Nota interna',nota:`Venta CANCELADA — Lote ${ap.clave_lote} — Motivo: ${motivo} — Lote vuelto a: ${destinoLote}`,fecha:now,usuario:CU.id,estatusCambio:estatusProsp});
   const regCancel=IANNA_MOTOR.registrarCancelacion('venta', ap, motivo, destinoLote);
+  // ── FASE 1.9: LEDGER INMUTABLE. Los ingresos NO se borran — se compensan. ──
+  try{
+    const pv=(ap.politica_snapshot||{}).version||'v1';
+    const docCan=IANNA_FMT.FOLIO(regCancel.folio,'CAN');
+    IANNA_FIN.compensarCancelacion({operacionId:aid, personaId:ap.prospectoId, documentoCancelacion:docCan, motivo, politica_version:pv});
+    IANNA_FIN.compensarComisiones({operacionId:aid, motivo, politica_version:pv});
+    // Penalización según política snapshot
+    const pen=IANNA_COM.calcularPenalizacion(ap,'venta');
+    if(pen.monto>0){
+      IANNA_FIN.registrarPenalizacion({
+        operacionId:aid, personaId:ap.prospectoId, monto:pen.monto,
+        documento:docCan, motivo,
+        politica_version:pv,
+        concepto:`Penalización por cancelación (${pen.tipo==='fijo'?IANNA_FMT.MXN(pen.valor):IANNA_FMT.PCT(pen.valor)} — política ${pen.politica_version})`,
+      });
+    }
+  }catch(e){ console.error('cancelación ledger',e); }
   IANNA_MOTOR.auditar('apartados', aid, destinoLote==='Apartado'?'REVERTIR_VENTA_A_APARTADO':'CANCELAR_VENTA', _antesCancel, {estatus:destinoLote==='Apartado'?'Activo':'Venta Cancelada', destino:destinoLote, folio_cancelacion:regCancel.folio}, motivo);
   renderApartados(); renderInventario(); renderDashboard(); renderIngresos();
   toast(`Venta cancelada. Lote ${ap.clave_lote} → ${destinoLote} ✓ (Folio de cancelación ${String(regCancel.folio).padStart(8,'0')})`,'warn',5000);

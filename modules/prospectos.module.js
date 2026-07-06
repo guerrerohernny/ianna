@@ -129,6 +129,8 @@ function doKanbanMove(pid, nuevoEst, anterior){
   const now=new Date().toISOString();
   DS.create('seguimientos',{prospectoId:pid,tipo:'Nota interna',nota:`Kanban: ${anterior} → ${nuevoEst}`,fecha:now,usuario:CU.id,estatusCambio:nuevoEst});
   auditLog('prospectos',pid,'KANBAN_MOVE',{estatus:anterior},{estatus:nuevoEst});
+  // ── FASE 1.9: sincronizar automáticamente la Oportunidad de esta Persona ──
+  try{ IANNA_OPO.sincronizarDesdeProspecto(pid, nuevoEst); }catch(e){ console.error('sincronizar Oportunidad',e); }
   filterProsp(); updateBell();
 }
 function openProspectoModal(editId=null){

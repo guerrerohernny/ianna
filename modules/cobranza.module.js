@@ -89,6 +89,17 @@ function registrarPagoCobranza(){
   $('cob-monto').value='';
   renderCobranza();
   IANNA_MOTOR.auditar('apartados', _cierreData.ap.id, 'REGISTRAR_PAGO', {}, {monto:pago.monto, metodo:pago.metodo, concepto:pago.concepto, folio:pago.folio}, 'Pago de cobranza con recibo');
+  // ── FASE 1.9: registrar el pago en el LEDGER inmutable del Motor Financiero ──
+  try{
+    IANNA_FIN.registrarIngreso({
+      operacionId:_cierreData.ap.id, personaId:_cierreData.ap.prospectoId,
+      monto:pago.monto, metodo:pago.metodo,
+      documento:IANNA_FMT.FOLIO(pago.folio),
+      concepto:pago.concepto,
+      politica_version:(_cierreData.ap.politica_snapshot||{}).version||'v1',
+      motivo:'Cobranza registrada desde cierre',
+    });
+  }catch(e){ console.error('ledger cobranza',e); }
   toast(`Pago registrado — Recibo folio ${String(pago.folio).padStart(8,'0')} ✓`,'ok');
 }
 function reabrirReciboPago(apId,pagoId){

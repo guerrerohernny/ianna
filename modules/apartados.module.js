@@ -390,6 +390,8 @@ function convertirVenta(aid){ return IANNA_OPS.ejecutar('contrato_firmado',{aid}
 // ── EJECUTOR (solo escribe; validaciones/confirmación las hizo el Motor de Operaciones) ──
 function _ejecutarContratoFirmado(aid){
   const ap=DS.findOne('apartados',aid); if(!ap) return false;
+  // ── FASE 1.9: congelar snapshot de política ANTES de tocar nada ──
+  IANNA_COM.congelarPolitica(ap);
   const now=new Date().toISOString();
   const l=getLote(ap.clave_lote)||{}; const m=getMod(ap.modelo_id)||{};
   const P=getP();
@@ -412,6 +414,44 @@ function _ejecutarContratoFirmado(aid){
   DS.create('seguimientos',{prospectoId:ap.prospectoId,tipo:'Nota interna',nota:`¡VENTA CERRADA! Lote ${ap.clave_lote}`,fecha:now,usuario:CU.id,estatusCambio:'Venta'});
   renderApartados(); renderInventario(); renderDashboard(); filterProsp();
   IANNA_MOTOR.auditar('apartados', aid, 'CONVERTIR_VENTA', {estatus:'Activo'}, {estatus:'Venta', total_operacion:totalOp, lote:ap.clave_lote}, 'Contrato firmado');
+  // ── FASE 1.9: marcar la Oportunidad activa como GANADA (enlaza al APT-) ──
+  try{
+    const oport = IANNA_OPO.oportunidadImplicita(ap.prospectoId);
+    if(oport && oport.estado !== 'Ganada') IANNA_OPO.marcarGanada(oport.id, aid);
+  }catch(e){ console.error('marcar Oportunidad Ganada',e); }
+  // ── FASE 1.9: congelar pagarés como sub-registros con folio ÚNICO y devengar comisiones ──
+  try{
+    const apV=DS.findOne('apartados',aid);
+    // Congelar pagarés desde el cierre en curso o desde el snapshot del expediente
+    const pagFuente = (typeof _cierreData!=='undefined'&&_cierreData&&_cierreData.ap.id===aid) ? _cierreData.pagares : (apV.doc_snapshot?.pagares || []);
+    if(pagFuente && pagFuente.length && !apV.pagares_congelados){
+      const congelados=pagFuente.map((p,i)=>({
+        id:'pag_'+aid+'_'+(i+1),
+        n:p.n, total:pagFuente.length,
+        folio: IANNA_FOLIOS.emitir('pagare', aid+':'+p.n),
+        id_publico: IANNA_IDS.asignar('recibo'),
+        fecha: (p.fecha instanceof Date ? p.fecha.toISOString().split('T')[0] : p.fecha),
+        monto: p.monto,
+        estado:'Pendiente',
+        historial:[{accion:'emitido', fecha:new Date().toISOString(), usuario:CU.id}],
+      }));
+      DS.update('apartados', aid, { pagares_congelados: congelados });
+    }
+    // Devengar comisiones en el ledger (respetando snapshot de política ya congelada)
+    IANNA_COM.devengarComisiones(DS.findOne('apartados',aid));
+    // Ingreso del apartado inicial (si aún no está en el ledger)
+    if(!IANNA_FIN.movimientosDe(aid).some(m=>m.tipo==='ingreso'&&m.concepto?.includes('Apartado inicial'))){
+      IANNA_FIN.registrarIngreso({
+        operacionId:aid, personaId:apV.prospectoId,
+        monto:apV.monto_enganche||0,
+        metodo:apV.metodo_pago||'Transferencia',
+        documento: IANNA_FMT.FOLIO(apV.folio_recibo),
+        concepto:'Apartado inicial',
+        politica_version:(apV.politica_snapshot||{}).version||'v1',
+        motivo:'Ingreso del apartado, registrado en ledger al firmar contrato',
+      });
+    }
+  }catch(e){ console.error('congelar pagarés/comisiones',e); }
   toast('¡Venta registrada! 🎉','ok');
 }
 

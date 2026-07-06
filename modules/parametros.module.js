@@ -8,6 +8,7 @@
 // ================================================================
 function renderParametros(){
   const P=getP();
+  try{ renderPoliticaComercial(); }catch(e){ console.error('renderPoliticaComercial',e); }
   $('pm-solo').value=P.precio_m2_solo||14500;
   $('pm-exc').value=P.precio_m2_exc||9000;
   $('pm-adic').value=P.precio_m2_lote_adicional||13000;
@@ -89,3 +90,58 @@ function saveParametros(){
   toast('Parámetros guardados ✓ — todo el sistema actualizado','ok');
 }
 
+
+// ══ FASE 1.9: Política Comercial editable desde Parámetros ══════
+function renderPoliticaComercial(){
+  const pol = IANNA_COM.politicaActual();
+  $('pc-version').textContent = pol.version;
+  $('pc-bc-viv').checked = !!pol.base_comisionable.precio_vivienda;
+  $('pc-bc-exc').checked = !!pol.base_comisionable.excedente_terreno;
+  $('pc-bc-plus').checked = !!pol.base_comisionable.plusvalia;
+  $('pc-bc-adic').checked = !!pol.base_comisionable.adicional;
+  $('pc-bc-gastos').checked = !!pol.base_comisionable.gastos_operacion;
+  $('pc-desc').checked = !!pol.aplicar_descuento;
+  $('pc-pct-ad').value = (pol.porcentajes.asesor_directo*100).toFixed(3);
+  $('pc-pct-ab').value = (pol.porcentajes.asesor_broker*100).toFixed(3);
+  $('pc-pct-ge').value = (pol.porcentajes.gerente*100).toFixed(3);
+  $('pc-pct-bk').value = (pol.porcentajes.broker*100).toFixed(3);
+  const da = pol.distribucion_asesor||[];
+  const dg = pol.distribucion_gerente||[];
+  $('pc-dist-a1').value = ((da[0]?.pct||0)*100).toFixed(0);
+  $('pc-dist-a2').value = ((da[1]?.pct||0)*100).toFixed(0);
+  $('pc-dist-g1').value = ((dg[0]?.pct||0)*100).toFixed(0);
+  $('pc-dist-g2').value = ((dg[1]?.pct||0)*100).toFixed(0);
+  $('pc-pen-apt').value = (((pol.penalizaciones?.cancelacion_apartado?.valor)||0)*100).toFixed(2);
+  $('pc-pen-ven').value = (((pol.penalizaciones?.cancelacion_venta?.valor)||0)*100).toFixed(2);
+}
+function guardarPoliticaComercial(){
+  const a1 = parseFloat($('pc-dist-a1').value)||0, a2 = parseFloat($('pc-dist-a2').value)||0;
+  const g1 = parseFloat($('pc-dist-g1').value)||0, g2 = parseFloat($('pc-dist-g2').value)||0;
+  if(Math.abs((a1+a2)-100) > 0.01){ toast('La distribución del asesor debe sumar 100%','err'); return; }
+  if(Math.abs((g1+g2)-100) > 0.01){ toast('La distribución del gerente debe sumar 100%','err'); return; }
+  const nueva = {
+    base_comisionable: {
+      precio_vivienda:    $('pc-bc-viv').checked,
+      excedente_terreno:  $('pc-bc-exc').checked,
+      plusvalia:          $('pc-bc-plus').checked,
+      adicional:          $('pc-bc-adic').checked,
+      gastos_operacion:   $('pc-bc-gastos').checked,
+    },
+    aplicar_descuento: $('pc-desc').checked,
+    porcentajes: {
+      asesor_directo:  (parseFloat($('pc-pct-ad').value)||0)/100,
+      asesor_broker:   (parseFloat($('pc-pct-ab').value)||0)/100,
+      gerente:         (parseFloat($('pc-pct-ge').value)||0)/100,
+      broker:          (parseFloat($('pc-pct-bk').value)||0)/100,
+    },
+    distribucion_asesor:  [ { parte:'firma', pct:a1/100 }, { parte:'escrituracion', pct:a2/100 } ],
+    distribucion_gerente: [ { parte:'firma', pct:g1/100 }, { parte:'escrituracion', pct:g2/100 } ],
+    penalizaciones: {
+      cancelacion_apartado: { tipo:'porcentaje', valor:(parseFloat($('pc-pen-apt').value)||0)/100, exhibiciones:1, retencion_comisiones:false },
+      cancelacion_venta:    { tipo:'porcentaje', valor:(parseFloat($('pc-pen-ven').value)||0)/100, exhibiciones:1, retencion_comisiones:false, distribucion:[] },
+    },
+  };
+  const guardada = IANNA_COM.guardarPolitica(nueva, 'Cambio manual desde Parámetros');
+  renderPoliticaComercial();
+  toast('Política Comercial guardada como '+guardada.version+' ✓','ok');
+}

@@ -184,18 +184,7 @@ function imprimirReciboApartado(){
   win.document.close();
 }
 
-function numToLetras(n){
-  // Simple converter for common amounts
-  const u=['','UN','DOS','TRES','CUATRO','CINCO','SEIS','SIETE','OCHO','NUEVE','DIEZ','ONCE','DOCE','TRECE','CATORCE','QUINCE','DIECISEIS','DIECISIETE','DIECIOCHO','DIECINUEVE'];
-  const d=['','','VEINTE','TREINTA','CUARENTA','CINCUENTA','SESENTA','SETENTA','OCHENTA','NOVENTA'];
-  const c=['','CIENTO','DOSCIENTOS','TRESCIENTOS','CUATROCIENTOS','QUINIENTOS','SEISCIENTOS','SETECIENTOS','OCHOCIENTOS','NOVECIENTOS'];
-  if(n===0) return 'CERO PESOS 00/100 M.N.';
-  if(n>=1000000) return Math.floor(n/1000000)+' MILLÓN(ES) '+numToLetras(n%1000000);
-  if(n>=1000){ const m=Math.floor(n/1000); return (m===1?'MIL':u[m]||d[Math.floor(m/10)]+(m%10?' Y '+u[m%10]:'')+' MIL')+' '+numToLetras(n%1000); }
-  if(n>=100) return c[Math.floor(n/100)]+(n%100?' '+numToLetras(n%100):'');
-  if(n>=20) return d[Math.floor(n/10)]+(n%10?' Y '+u[n%10]:'');
-  return u[n]||n+' PESOS 00/100 M.N.';
-}
+// numToLetras: ahora vive en utils/formatos.util.js (Motor de Formatos único)
 
 
 function imprimirFormatoApartado(){
