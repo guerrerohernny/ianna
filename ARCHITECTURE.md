@@ -113,6 +113,35 @@ Sobre las Fases 1 y 1.5 se construye el **núcleo operativo**. Filosofía de arq
 - El estatus interno de los registros (`estatus:'Activo'|'Venta'|…`) se conserva porque toda la base de datos existente lo referencia; la máquina lo interpreta vía `estadoDe(ap)`. Migrarlo a `estado_maquina` directo sería un cambio mecánico posterior sin implicaciones lógicas.
 - El historial se persiste íntegro en `localStorage` en esta fase; su migración a un almacén dedicado llega junto con Supabase (Fase multi-empresa).
 
+## Fase 1.9 — Consolidación del núcleo operativo, comercial y financiero
+
+Esta fase corrige inconsistencias detectadas en uso real y termina de definir el modelo de negocio de la plataforma. Adopta como principios permanentes el ledger inmutable, la política versionada y la trazabilidad obligatoria (6 preguntas). Ver `ROADMAP.md` y `DOMAIN_MODEL.md` — actualizados como referencia oficial.
+
+**Nuevos motores en `/business` y `/utils`:**
+- `utils/formatos.util.js` — `IANNA_FMT`: **motor de formatos único**. MXN, M2 (siempre 3 decimales), TEL, PCT, FOLIO, NUM_A_LETRAS. Corrige el bug del `undefined` en montos de millones. Verificado hasta 999,999,999,999 pesos. Alias de compatibilidad para `numToLetras`.
+- `business/financiero.business.js` — `IANNA_FIN`: **Libro Mayor inmutable (append-only)**. Movimientos con `MOV-nnnnnn` permanentes, jamás modificables. Los cambios se expresan mediante movimientos compensatorios (cancelación, reembolso, retención de comisión). Trazabilidad obligatoria: cada movimiento responde las 6 preguntas.
+- `business/comisiones.business.js` — `IANNA_COM`: **política comercial versionada**. Base comisionable configurable (gastos administrativos excluidos por default), descuentos aplicados a la base, distribución configurable, penalizaciones parametrizables. Cada Operación conserva **snapshot inmutable** de la política vigente al firmarse — los cierres históricos jamás se recalculan.
+- `business/oportunidades.business.js` — `IANNA_OPO`: **motor de Oportunidades**. Una Persona puede tener múltiples Oportunidades activas simultáneas (incluso en distintos Proyectos). Al ganarse, la Oportunidad genera una Operación y queda enlazada permanentemente. Sincronización bidireccional automática con el kanban existente (compatibilidad total sin migración forzada).
+
+**Integraciones transversales:**
+- La operación `contrato_firmado` ahora **congela la política**, **congela los pagarés con folio único por cada uno** (id permanente REC-, estado, historial), **devenga comisiones en el ledger** y **registra el ingreso del apartado**.
+- Cobranza registra pagos en el ledger inmutable.
+- Cancelaciones emiten movimientos compensatorios de ingresos y comisiones (nada se borra), aplicando la penalización según la política snapshot de la Operación.
+- Kanban existente conecta automáticamente al motor de Oportunidades: mover una tarjeta sincroniza la Oportunidad; convertir a venta la marca Ganada.
+
+**Nueva UI:**
+- Sección "Política Comercial (versionada)" en Parámetros: base comisionable con checkboxes por concepto, porcentajes por rol, distribución configurable con validación de suma 100%, penalizaciones. Cada guardado incrementa la versión (v1 → v2 → v3…) y conserva historial.
+
+**Decisiones documentadas de esta fase (estabilidad > agresividad):**
+
+- **La reorganización visual de Parámetros en 8 pestañas se pospone a una iteración menor.** Se añadió la sección crítica de Política Comercial versionada — indispensable para el motor. La reagrupación por pestañas Empresa/Comercial/Inventario/Financiero/Documentos/Usuarios/Integraciones/Sistema es cosmética y no bloqueante; introducirla ahora aumentaba superficie de UI sin beneficio funcional en esta fase.
+- **Oportunidad como capa aditiva compatible.** No se reescribe el kanban; se conecta al motor de Oportunidades por debajo. Cada prospecto obtiene una Oportunidad implícita al primer movimiento en el kanban. Esta estrategia respeta la compatibilidad total con datos existentes y permite migrar la UI del pipeline a "una tarjeta por Oportunidad" en una fase futura sin urgencia.
+- **Migración de comisiones históricas: NO se recalculan.** Las ventas cerradas antes de esta fase mantienen su cálculo original. La política snapshot congelada garantiza que los cierres nuevos usan la política actual y los antiguos su política de la época — como si fueran contratos firmados en su momento.
+- **IDs MOV- comparten el consecutivo persistente con OPE- (mismo pool numérico).** Simplificación consciente: ambos son eventos permanentes del sistema, un pool único evita fragmentación. La distinción de prefijo mantiene la claridad visual (MOV-000042 vs OPE-000042 son entidades distintas aunque compartan número — el prefijo es identificador de tipo).
+- **Descuento aplicado a la base comisionable: configurable, default ON.** El default correcto por consultoría inmobiliaria es aplicar descuento (no comisionar sobre precio de lista). La política permite desactivarlo si la empresa lo requiere.
+
+**Cobertura de pruebas (67/67 verdes):** 21 base + 24 Fase 1.5 + 9 Fase 1.8 + 13 Fase 1.9 nuevas cubren formatos, ledger inmutable, compensación, política versionada, snapshot inmutable en la Operación, devengo automático al firmar, pagarés con folio único, sincronización kanban↔Oportunidad, Persona con múltiples Oportunidades, guardado de política con incremento de versión. **E2E integral en Chromium** por rol (gerente y asesor) sin un solo error de consola.
+
 ## Pendientes explícitos para Fase 2 (decisión consciente: estabilidad > agresividad)
 
 - Migrar llamadas `DS.*` de los módulos a los servicios de entidades.
